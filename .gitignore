@@ -4,8 +4,12 @@ env.py
 .idea/
 .vscode/
 
-__pycache__/
+**/__pycache__/
 
 results/
 **/*.gguf
 **/.cache/
+
+**/.DS_Store/
+**/*.pdf
+outputs/

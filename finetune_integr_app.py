@@ -3,12 +3,11 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from pydantic import BaseModel, Field
 
 from configuration import setup_env
-
+from utils import get_ollama_model
 
 CLAUDE_SONNET = 'claude-3-5-sonnet-20240620'
 
@@ -31,14 +30,6 @@ def get_sql_generator_tool():
     """
     return chain.as_tool(name='SQL_Context_Generator', description=tool_description)
 
-def get_ollama_model():
-    llm = ChatOpenAI(
-        api_key="ollama",
-        model="sqllama",
-        base_url="http://localhost:11434/v1",
-    )
-    return llm
-
 class OutputAgentResponse(BaseModel):
     context: str = Field(..., description= "context of SQL comprising of SQL CREATE TABLE statements.")
     query: str = Field(..., description="Contains the output query")
@@ -57,7 +48,7 @@ def get_main_agent():
              ```
         """
     sql_generator_tool = get_sql_generator_tool()
-    model = get_ollama_model()
+    model = get_ollama_model(model='sqllama')
     app = create_react_agent(model=model, tools=[sql_generator_tool], state_modifier=agent_system_message)
     return app
 
