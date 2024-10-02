@@ -6,9 +6,9 @@ from langchain_community.tools import WikipediaQueryRun, StackExchangeTool
 from langchain_community.utilities import WikipediaAPIWrapper, StackExchangeAPIWrapper
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 from pydantic import BaseModel, Field
 
+from configuration import setup_env
 from env import ANTHROPHIC_API
 
 
@@ -25,8 +25,7 @@ def router(out: OutputRelevancy):
     return
 
 def main():
-    if "ANTHROPIC_API_KEY" not in os.environ:
-        os.environ["ANTHROPIC_API_KEY"] = ANTHROPHIC_API
+    setup_env()
     llm = ChatAnthropic(model="claude-3-5-sonnet-20240620")
 
     api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=5000)

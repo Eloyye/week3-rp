@@ -5,3 +5,7 @@ env.py
 .vscode/
 
 __pycache__/
+
+results/
+**/*.gguf
+**/.cache/
