@@ -1,3 +1,4 @@
+import argparse
 import getpass
 import os
 
@@ -9,22 +10,12 @@ from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field
 
 from configuration import setup_env
-from env import ANTHROPHIC_API
 
 
 class WikipediaConcepts(BaseModel):
     headline: str = Field(description='headline of a given query')
 
-class OutputRelevancy(BaseModel):
-    summary: str = Field(description="Output summary")
-    answers_question: bool = Field(description="Returns true if the summary is sufficient to answer the question")
-
-def router(out: OutputRelevancy):
-    if not out:
-        return
-    return
-
-def main():
+def main(query):
     setup_env()
     llm = ChatAnthropic(model="claude-3-5-sonnet-20240620")
 
@@ -79,11 +70,16 @@ def main():
     """)
 
     result_chain = {"summary": summarization_chain, "query": lambda x: x["query"]} | output_prompt | llm | StrOutputParser()
-    result = result_chain.invoke({"query": "What is a load balancer"})
-
+    result = result_chain.invoke({"query": query})
     print(result)
 
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(
+        prog='multi-chain llm',
+        description='llm that calls wikipedia and stack exchange based on recent information ',
+        epilog='')
+    parser.add_argument('query')
+    args = parser.parse_args()
+    main(args.query)

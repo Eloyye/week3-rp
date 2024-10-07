@@ -11,24 +11,42 @@ from utils import get_ollama_model
 
 CLAUDE_SONNET = 'claude-3-5-sonnet-20240620'
 
-def get_sql_generator_tool():
+def create_model_as_tool(tool_name="", system_message="", human_input="", model=None, tool_description="", arg_types=None):
+    assert model
     template = [
-        ('system', """
+        ('system', system_message),
+        ("human", human_input)
+    ]
+    prompt = ChatPromptTemplate(template)
+    chain = prompt | model | StrOutputParser()
+    return chain.as_tool(name=tool_name, description=tool_description, arg_types=arg_types)
+
+def get_sql_query_generator():
+    system_prompt = """
+                You are a SQL specialized API tool. 
+                You are given a request in natural language but your job is to create the queries corresponding to a given context
+                Only provide the SQL response and nothing else.
+            """
+    model = get_ollama_model(model='sqllama')
+    tool_description = """
+            This tool provides SQL query generation given question in natural language and context in sql. 
+            Use this tool to generate a query and must be used in a final tool call.
+        """
+    return create_model_as_tool("SQL_query_generator", system_prompt, "Here is the question:\n{question}\n\nHere is the context in SQL:\n{context}", model, tool_description, arg_types={"question": str, "context": str})
+
+def get_sql_generator_tool():
+    system_prompt = """
             You are a SQL specialized API tool. 
             You are given a request in natural language but your job is to only create the table or tables that satisfy
             that requirement.
             Only provide the SQL response and nothing else.
-        """),
-        ("human", "{user_query}")
-    ]
-    prompt = ChatPromptTemplate(template)
+        """
     model = ChatAnthropic(model=CLAUDE_SONNET)
-    chain = prompt | model | StrOutputParser()
     tool_description = """
         This tool provides SQL context generation. 
         Use this tool when client does not provide necessary context like a SQL table or schema.
     """
-    return chain.as_tool(name='SQL_Context_Generator', description=tool_description)
+    return create_model_as_tool("SQL_context_Generator", system_prompt, '{user_query}', model, tool_description)
 
 class OutputAgentResponse(BaseModel):
     context: str = Field(..., description= "context of SQL comprising of SQL CREATE TABLE statements.")
@@ -37,19 +55,20 @@ class OutputAgentResponse(BaseModel):
 def get_main_agent():
     # model = ChatAnthropic(model=CLAUDE_SONNET)
     agent_system_message = """
-            You are an LLM agent specialized in making SQL queries based on natural language. 
-            If you are not given any context, then you need to use generate table by performing a tool call. 
-            Output your response to both the generated context tables and your SQL query like:
-             ```json
-             {
-                context: "CREATE TABLE",
-                query: "SELECT ",
-             }
-             ```
+            You are a Q&A model that specializes in answering questions about SQL. If the client provides zero context in terms of SQL tables, then you must make a tool call to create that SQL context 
+            . Finally, You would then need to make a tool call
+            to generate query:
+            the output should be of the following schema:
+            {
+                context: string,
+                query: string
+            }
         """
-    sql_generator_tool = get_sql_generator_tool()
-    model = get_ollama_model(model='sqllama')
-    app = create_react_agent(model=model, tools=[sql_generator_tool], state_modifier=agent_system_message)
+    sql_context_generator = get_sql_generator_tool()
+    sql_query_generator = get_sql_query_generator()
+    # tool calling
+    model = ChatAnthropic(model=CLAUDE_SONNET)
+    app = create_react_agent(model=model, tools=[sql_context_generator, sql_query_generator], state_modifier=agent_system_message)
     return app
 
 def get_args():
@@ -76,15 +95,15 @@ def main():
 
     app = get_main_agent()
 
-    # debug(app, args["query"])
+    debug(app, args["query"])
 
-    chain = app
+    # chain = app
+    #
+    # result = chain.invoke({"messages": [
+    #     HumanMessage(content=args["query"])
+    # ]})
 
-    result = chain.invoke({"messages": [
-        HumanMessage(content=args["query"])
-    ]})
-
-    print(result['messages'][-1].content)
+    # print(result['messages'][-1].content)
 
 if __name__ == '__main__':
     main()

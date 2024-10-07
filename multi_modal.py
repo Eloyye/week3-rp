@@ -14,7 +14,7 @@ from langgraph.prebuilt import create_react_agent
 from pydantic import BaseModel, Field
 
 from configuration import setup_env
-
+from utils import get_ollama_model
 
 
 def encode_image(image_link: str):
@@ -57,7 +57,8 @@ def create_image_messages(inputs):
 def talk_to_agent(content: str):
     setup_env()
     llm = ChatAnthropic(model='claude-3-5-sonnet-20240620')
-    image_recognition_tool = image_recognition_llm_tool(llm)
+    image_llm = get_ollama_model(model='moondream')
+    image_recognition_tool = image_recognition_llm_tool(image_llm)
     agent = create_react_agent(llm, [image_recognition_tool], state_modifier="""You are an agent chatbot such that whenever user inserts a link, you must call visionAPI tool.
         Then, using that description of the image answer the user's questions. Do not make up new url links.
         """)
